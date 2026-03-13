@@ -29,7 +29,7 @@ export default function Header() {
           </Link>
           <Link
             href="/signin"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:scale-95 transition-all"
           >
             Sign In
           </Link>

@@ -1,17 +1,23 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Edit2 } from "lucide-react";
 import { Image } from "@/app/lib/storage";
 
 interface ImageUploaderProps {
   onImagesChange: (images: Image[]) => void;
 }
 
+interface ImageWithMeta extends Image {
+  pendingName: string;
+  pendingFlavorText: string;
+}
+
 export default function ImageUploader({ onImagesChange }: ImageUploaderProps) {
-  const [images, setImages] = useState<Image[]>([]);
+  const [images, setImages] = useState<ImageWithMeta[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const handleFiles = useCallback(
     async (files: FileList) => {
@@ -37,9 +43,21 @@ export default function ImageUploader({ onImagesChange }: ImageUploaderProps) {
         }
 
         const uploadedImages: Image[] = await response.json();
-        const newImages = [...images, ...uploadedImages];
-        setImages(newImages);
-        onImagesChange(newImages);
+        const newImages: ImageWithMeta[] = uploadedImages.map((img) => ({
+          ...img,
+          pendingName: img.name.replace(/\.[^/.]+$/, ""),
+          pendingFlavorText: img.flavorText || "",
+        }));
+        const allImages = [...images, ...newImages];
+        setImages(allImages);
+        onImagesChange(
+          allImages.map((img) => ({
+            id: img.id,
+            name: img.pendingName,
+            url: img.url,
+            flavorText: img.pendingFlavorText || undefined,
+          }))
+        );
       } catch (error) {
         console.error("Error uploading images:", error);
       } finally {
@@ -70,7 +88,29 @@ export default function ImageUploader({ onImagesChange }: ImageUploaderProps) {
   const removeImage = (id: string) => {
     const newImages = images.filter((img) => img.id !== id);
     setImages(newImages);
-    onImagesChange(newImages);
+    onImagesChange(
+      newImages.map((img) => ({
+        id: img.id,
+        name: img.pendingName,
+        url: img.url,
+        flavorText: img.pendingFlavorText || undefined,
+      }))
+    );
+  };
+
+  const updateImageMeta = (id: string, field: "pendingName" | "pendingFlavorText", value: string) => {
+    const newImages = images.map((img) =>
+      img.id === id ? { ...img, [field]: value } : img
+    );
+    setImages(newImages);
+    onImagesChange(
+      newImages.map((img) => ({
+        id: img.id,
+        name: img.pendingName,
+        url: img.url,
+        flavorText: img.pendingFlavorText || undefined,
+      }))
+    );
   };
 
   return (
@@ -124,18 +164,48 @@ export default function ImageUploader({ onImagesChange }: ImageUploaderProps) {
             >
               <img
                 src={image.url}
-                alt={image.name}
+                alt={image.pendingName}
                 className="w-full h-full object-cover"
               />
               <button
+                onClick={() => setEditingId(editingId === image.id ? null : image.id)}
+                className="absolute top-2 right-2 p-1 bg-blue-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
                 onClick={() => removeImage(image.id)}
-                className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-2 left-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <X className="w-4 h-4" />
               </button>
-              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 truncate">
-                {image.name}
-              </div>
+              {editingId === image.id ? (
+                <div className="absolute inset-0 bg-black/80 p-2 flex flex-col gap-1">
+                  <input
+                    type="text"
+                    value={image.pendingName}
+                    onChange={(e) => updateImageMeta(image.id, "pendingName", e.target.value)}
+                    placeholder="Image name"
+                    className="text-xs px-1 py-0.5 rounded bg-white text-gray-900 w-full"
+                  />
+                  <textarea
+                    value={image.pendingFlavorText}
+                    onChange={(e) => updateImageMeta(image.id, "pendingFlavorText", e.target.value)}
+                    placeholder="Flavor text (optional)"
+                    className="text-xs px-1 py-0.5 rounded bg-white text-gray-900 w-full flex-1 resize-none"
+                  />
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="text-xs bg-blue-500 text-white rounded py-0.5"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 truncate">
+                  {image.pendingName}
+                </div>
+              )}
             </div>
           ))}
         </div>

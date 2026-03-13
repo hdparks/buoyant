@@ -39,35 +39,15 @@ function initializeSchema() {
       collectionId TEXT NOT NULL,
       FOREIGN KEY (collectionId) REFERENCES collections(id) ON DELETE CASCADE
     );
-
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      name TEXT,
-      image TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS rankings (
-      id TEXT PRIMARY KEY,
-      userId TEXT NOT NULL,
-      collectionId TEXT NOT NULL,
-      userName TEXT,
-      userImage TEXT,
-      ranks TEXT DEFAULT '[]',
-      ratings TEXT DEFAULT '{}',
-      updatedAt TEXT NOT NULL,
-      FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (collectionId) REFERENCES collections(id) ON DELETE CASCADE,
-      UNIQUE(userId, collectionId)
-    );
-
-    CREATE TABLE IF NOT EXISTS comparisons (
-      id TEXT PRIMARY KEY,
-      rankingId TEXT NOT NULL,
-      winnerId TEXT NOT NULL,
-      loserId TEXT NOT NULL,
-      FOREIGN KEY (rankingId) REFERENCES rankings(id) ON DELETE CASCADE
-    );
   `);
+
+  try {
+    db.exec(`ALTER TABLE images ADD COLUMN flavorText TEXT`);
+  } catch (e: unknown) {
+    if (e instanceof Error && !e.message.includes("duplicate column name")) {
+      throw e;
+    }
+  }
 }
 
 export function closeDb() {

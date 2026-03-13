@@ -6,6 +6,7 @@ export interface Image {
   id: string;
   name: string;
   url: string;
+  flavorText?: string;
 }
 
 export interface UserRanking {
@@ -45,7 +46,7 @@ function loadCollectionWithDetails(collectionId: string): Collection | undefined
   if (!collection) return undefined;
 
   const images = db.prepare(
-    "SELECT id, name, url FROM images WHERE collectionId = ?"
+    "SELECT id, name, url, flavorText FROM images WHERE collectionId = ?"
   ).all(collectionId) as Image[];
 
   const rankings: Record<string, UserRanking> = {};
@@ -127,13 +128,13 @@ export function createCollection(name: string, images: Image[]): Collection {
     "INSERT INTO collections (id, name, createdAt) VALUES (?, ?, ?)"
   );
   const insertImage = db.prepare(
-    "INSERT INTO images (id, name, url, collectionId) VALUES (?, ?, ?, ?)"
+    "INSERT INTO images (id, name, url, flavorText, collectionId) VALUES (?, ?, ?, ?, ?)"
   );
 
   const transaction = db.transaction(() => {
     insertCollection.run(id, name, createdAt);
     for (const image of images) {
-      insertImage.run(image.id, image.name, image.url, id);
+      insertImage.run(image.id, image.name, image.url, image.flavorText || null, id);
     }
   });
 
@@ -239,5 +240,34 @@ export async function saveImage(file: File): Promise<Image> {
 export function deleteCollection(id: string): boolean {
   const db = getDb();
   const result = db.prepare("DELETE FROM collections WHERE id = ?").run(id);
+  return result.changes > 0;
+}
+
+export function updateImage(
+  imageId: string,
+  updates: { name?: string; flavorText?: string }
+): boolean {
+  const db = getDb();
+  
+  const setClauses: string[] = [];
+  const values: (string | null)[] = [];
+
+  if (updates.name !== undefined) {
+    setClauses.push("name = ?");
+    values.push(updates.name);
+  }
+  if (updates.flavorText !== undefined) {
+    setClauses.push("flavorText = ?");
+    values.push(updates.flavorText || null);
+  }
+
+  if (setClauses.length === 0) return false;
+
+  values.push(imageId);
+  
+  const result = db.prepare(
+    `UPDATE images SET ${setClauses.join(", ")} WHERE id = ?`
+  ).run(...values);
+
   return result.changes > 0;
 }

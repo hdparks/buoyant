@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, ArrowRight, Trash2, Image as ImageIcon, Users } from "lucide-react";
 import { Collection, Image } from "@/app/lib/storage";
 import ImageUploader from "@/app/components/ImageUploader";
+import { CollectionGridSkeleton } from "@/app/components/Skeleton";
+import { useToast } from "@/app/components/Toast";
 
 export default function CollectionsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { showToast } = useToast();
   
   const [collections, setCollections] = useState<Collection[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -80,6 +83,7 @@ export default function CollectionsPage() {
       const res = await fetch(`/api/collections/${id}`, { method: "DELETE" });
       if (res.ok) {
         setCollections(collections.filter((c) => c.id !== id));
+        showToast("Collection deleted", "success");
       }
     } catch (error) {
       console.error("Error deleting collection:", error);
@@ -100,9 +104,22 @@ export default function CollectionsPage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div>
+              <div className="h-9 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              <div className="h-5 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mt-2" />
+            </div>
+            <div className="h-10 w-36 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="h-10 flex-1 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+            <div className="h-10 w-32 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+          </div>
+          <CollectionGridSkeleton />
+        </div>
+      </main>
     );
   }
 
@@ -122,7 +139,7 @@ export default function CollectionsPage() {
           </div>
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:scale-95 transition-all"
           >
             <Plus className="w-5 h-5" />
             New Collection
@@ -152,15 +169,27 @@ export default function CollectionsPage() {
         </div>
 
         {filteredCollections.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <ImageIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 dark:text-gray-400">
-              {searchQuery ? "No collections match your search" : "No collections yet"}
+          <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ImageIcon className="w-8 h-8 text-blue-500" />
+            </div>
+            <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
+              {searchQuery ? "No collections found" : "No collections yet"}
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
+              {searchQuery 
+                ? "Try adjusting your search to find what you're looking for"
+                : "Create your first collection to start ranking your favorite images"
+              }
             </p>
             {!searchQuery && (
-              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                Create your first collection to start ranking
-              </p>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:scale-95 transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                Create Collection
+              </button>
             )}
           </div>
         ) : (
@@ -251,14 +280,14 @@ export default function CollectionsPage() {
                       setName("");
                       setImages([]);
                     }}
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors dark:text-gray-100"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95 transition-all dark:text-gray-100"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={createCollection}
                     disabled={!name || images.length < 2 || creating}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
                   >
                     {creating ? "Creating..." : "Create & Rank"}
                   </button>

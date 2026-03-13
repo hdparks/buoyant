@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Users, BarChart3, GitCompare, Activity } from "lucide-react";
+import { ArrowLeft, Users, BarChart3, GitCompare, Activity, Edit2 } from "lucide-react";
 import { Collection, Image, UserRanking } from "@/app/lib/storage";
 import Avatar from "@/app/components/Avatar";
+import ImageEditModal from "@/app/components/ImageEditModal";
 
 interface CompareViewProps {
   collection: Collection;
@@ -21,6 +22,7 @@ type VizType = "ranked" | "consensus" | "outliers" | "matrix" | "timeline";
 
 export default function CompareView({ collection }: CompareViewProps) {
   const [activeViz, setActiveViz] = useState<VizType>("ranked");
+  const [editingImage, setEditingImage] = useState<Image | null>(null);
 
   const rankings = Object.values(collection.rankings || {});
   const users = rankings.map((r) => ({
@@ -135,17 +137,31 @@ export default function CompareView({ collection }: CompareViewProps) {
                       <img src={data.image.url} alt={data.image.name} className="w-16 h-16 object-cover rounded-lg" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{data.image.name}</p>
-                        <div className="flex gap-2 mt-1 flex-wrap">
+                        {data.image.flavorText && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{data.image.flavorText}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setEditingImage(data.image)}
+                          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                          title="Edit image"
+                        >
+                          <Edit2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                        </button>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex gap-1 flex-wrap justify-end">
                           {users.map((u) => (
                             <span key={u.id} className={`text-xs px-2 py-0.5 rounded ${getRankColor(data.rankByUser[u.id], data.avgRank)}`}>
                               {u.name.split(" ")[0]}: #{data.rankByUser[u.id] || "-"}
                             </span>
                           ))}
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{data.avgRank.toFixed(1)}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">avg rank</p>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{data.avgRank.toFixed(1)}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">avg rank</p>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -176,6 +192,9 @@ export default function CompareView({ collection }: CompareViewProps) {
                           </div>
                           <span className="font-medium">{Math.round(agreement * 100)}% agree</span>
                         </div>
+                        {data.image.flavorText && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 ml-10">{data.image.flavorText}</p>
+                        )}
                         <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                           <div
                             className={`h-full transition-all duration-500 ${
@@ -207,6 +226,9 @@ export default function CompareView({ collection }: CompareViewProps) {
                         <img src={data.image.url} alt={data.image.name} className="w-16 h-16 object-cover rounded-lg" />
                         <div className="flex-1">
                           <p className="font-medium text-gray-900 dark:text-gray-100">{data.image.name}</p>
+                          {data.image.flavorText && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{data.image.flavorText}</p>
+                          )}
                           <div className="flex gap-2 mt-1">
                             {users.map((u) => (
                               <span key={u.id} className="text-xs bg-white dark:bg-gray-700 px-2 py-0.5 rounded border dark:border-gray-600">
@@ -342,6 +364,18 @@ export default function CompareView({ collection }: CompareViewProps) {
           </>
         )}
       </div>
+
+      {editingImage && (
+        <ImageEditModal
+          image={editingImage}
+          collectionId={collection.id}
+          onClose={() => setEditingImage(null)}
+          onSave={() => {
+            // Trigger a page refresh to show updated data
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, Trophy, Save, Users } from "lucide-react";
+import { ArrowLeft, Trophy, Save, Users, Image as ImageIcon } from "lucide-react";
 import { Collection, Image, Comparison, EloRating } from "@/app/lib/storage";
 import ComparisonCard from "@/app/components/ComparisonCard";
 import Avatar from "./Avatar";
+import { useToast } from "./Toast";
+import { PageSpinner } from "./Spinner";
 
 interface RankingPageProps {
   collection: Collection;
@@ -42,6 +44,7 @@ function applyComparisons(images: Image[], comparisons: Comparison[]): Image[] {
 
 export default function RankingPage({ collection }: RankingPageProps) {
   const { data: session } = useSession();
+  const { showToast } = useToast();
   const [ratings, setRatings] = useState<EloRating>({});
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
   const [sortedImages, setSortedImages] = useState<Image[]>(collection.images);
@@ -159,8 +162,10 @@ export default function RankingPage({ collection }: RankingPageProps) {
           ratings,
         }),
       });
+      showToast("Rankings saved successfully!", "success");
     } catch (error) {
       console.error("Error saving rankings:", error);
+      showToast("Failed to save rankings", "error");
     } finally {
       setSaving(false);
     }
@@ -183,11 +188,39 @@ export default function RankingPage({ collection }: RankingPageProps) {
       : null;
 
   if (!sortedImages.length || (!showResults && !currentPair)) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    if (collection.images.length === 0) {
+      return (
+        <div className="min-h-screen p-4 sm:p-8 bg-gray-50 dark:bg-gray-900">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center gap-4 mb-8">
+              <Link
+                href="/collections"
+                className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </Link>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {collection.name}
+                </h1>
+              </div>
+            </div>
+            <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+              <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ImageIcon className="w-8 h-8 text-blue-500" />
+              </div>
+              <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                No images in this collection
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
+                Add some images to start ranking them
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return <PageSpinner />;
   }
 
   return (
@@ -221,7 +254,7 @@ export default function RankingPage({ collection }: RankingPageProps) {
             <Avatar src={userImage} name={userName} size="sm" />
             <Link
               href={`/collections/${collection.id}/compare`}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 transition-all"
             >
               <Trophy className="w-4 h-4" />
               Compare
@@ -229,7 +262,7 @@ export default function RankingPage({ collection }: RankingPageProps) {
             <button
               onClick={saveRankings}
               disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 active:scale-95 transition-all"
             >
               <Save className="w-4 h-4" />
               {saving ? "Saving..." : "Save"}
