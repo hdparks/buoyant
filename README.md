@@ -1,4 +1,4 @@
-# Bobosort
+# Pickul
 
 Friend preference comparison.
 

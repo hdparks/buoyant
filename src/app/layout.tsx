@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bobosort - Rank Your Favorite Images",
+  title: "Pickul - Rank Your Favorite Images",
   description: "Compare and rank your favorite images with friends",
 };
 

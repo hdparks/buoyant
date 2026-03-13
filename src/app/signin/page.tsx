@@ -17,7 +17,7 @@ export default function SignIn() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
       <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Bobosort</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Pickul</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">Sign in to rank your favorites</p>
         </div>
 
@@ -54,7 +54,10 @@ export default function SignIn() {
         </button>
 
         <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-6">
-          By signing in, you agree to rank images fairly
+          By signing in, you agree to rank images fairly.
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-6">
+          Or, you know, not. I'm not your dad.
         </p>
       </div>
     </div>

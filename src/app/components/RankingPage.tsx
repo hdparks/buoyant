@@ -28,20 +28,26 @@ function calculateElo(
   };
 }
 
-function getRandomPair(images: Image[]): [Image, Image] {
-  const idx1 = Math.floor(Math.random() * images.length);
-  let idx2 = Math.floor(Math.random() * images.length);
-  while (idx2 === idx1) {
-    idx2 = Math.floor(Math.random() * images.length);
+function applyComparisons(images: Image[], comparisons: Comparison[]): Image[] {
+  const sorted = [...images];
+  for (const comp of comparisons) {
+    const idx = sorted.findIndex(img => img.id === comp.winnerId);
+    const nextIdx = sorted.findIndex(img => img.id === comp.loserId);
+    if (idx !== -1 && nextIdx !== -1 && idx > nextIdx) {
+      sorted.splice(nextIdx, 2, sorted[idx], sorted[nextIdx]);
+    }
   }
-  return [images[idx1], images[idx2]];
+  return sorted;
 }
 
 export default function RankingPage({ collection }: RankingPageProps) {
   const { data: session } = useSession();
   const [ratings, setRatings] = useState<EloRating>({});
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
-  const [currentPair, setCurrentPair] = useState<[Image, Image] | null>(null);
+  const [sortedImages, setSortedImages] = useState<Image[]>(collection.images);
+  const [pairIndex, setPairIndex] = useState(0);
+  const [passNumber, setPassNumber] = useState(1);
+  const [swapsThisPass, setSwapsThisPass] = useState(0);
   const [showResults, setShowResults] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -53,6 +59,34 @@ export default function RankingPage({ collection }: RankingPageProps) {
     const userRanking = collection.rankings?.[userId];
     if (userRanking?.comparisons) {
       setComparisons(userRanking.comparisons);
+      const restored = applyComparisons(collection.images, userRanking.comparisons);
+      setSortedImages(restored);
+      
+      const maxPasses = collection.images.length - 1;
+      const totalComparisons = (collection.images.length * (collection.images.length - 1)) / 2;
+      const comparisonsCount = userRanking.comparisons.length;
+      
+      if (comparisonsCount >= totalComparisons) {
+        setShowResults(true);
+        setPairIndex(collection.images.length - 1);
+      } else {
+        let pass = 1;
+        let comparisonsUsed = 0;
+        for (let p = 1; p <= maxPasses; p++) {
+          const passComparisons = collection.images.length - p;
+          if (comparisonsUsed + passComparisons <= comparisonsCount) {
+            comparisonsUsed += passComparisons;
+            pass = p + 1;
+          } else {
+            pass = p;
+            break;
+          }
+        }
+        setPassNumber(pass);
+        setPairIndex(Math.min(comparisonsCount - (pass - 1) * (collection.images.length - (pass - 1)), collection.images.length - pass));
+      }
+    } else {
+      setSortedImages([...collection.images]);
     }
     if (userRanking?.ratings) {
       setRatings(userRanking.ratings);
@@ -63,8 +97,6 @@ export default function RankingPage({ collection }: RankingPageProps) {
       });
       setRatings(initialRatings);
     }
-
-    setCurrentPair(getRandomPair(collection.images));
   }, [collection, userId]);
 
   const handleVote = useCallback(
@@ -79,21 +111,41 @@ export default function RankingPage({ collection }: RankingPageProps) {
         [loserId]: loserNew,
       }));
 
-      setComparisons((prev) => [...prev, { winnerId, loserId }]);
+      const newComparisons = [...comparisons, { winnerId, loserId }];
+      setComparisons(newComparisons);
 
-      setTimeout(() => {
-        setCurrentPair(getRandomPair(collection.images));
-      }, 150);
+      const newSorted = [...sortedImages];
+      const idx = newSorted.findIndex(img => img.id === winnerId);
+      const nextIdx = newSorted.findIndex(img => img.id === loserId);
+      
+      if (idx > nextIdx) {
+        newSorted.splice(nextIdx, 2, newSorted[idx], newSorted[nextIdx]);
+        setSortedImages(newSorted);
+        setSwapsThisPass((prev) => prev + 1);
+      }
+
+      const nextPairIndex = pairIndex + 1;
+      const maxIndex = sortedImages.length - passNumber - 1;
+      
+      if (nextPairIndex > maxIndex) {
+        if (swapsThisPass > 0 || (idx > nextIdx ? 1 : 0) > 0) {
+          setPairIndex(0);
+          setPassNumber((prev) => prev + 1);
+          setSwapsThisPass(0);
+        } else {
+          setShowResults(true);
+        }
+      } else {
+        setPairIndex(nextPairIndex);
+      }
     },
-    [ratings, collection.images]
+    [ratings, comparisons, sortedImages, pairIndex, passNumber, swapsThisPass]
   );
 
   const saveRankings = async () => {
     setSaving(true);
     try {
-      const sorted = Object.entries(ratings)
-        .sort(([, a], [, b]) => b - a)
-        .map(([id]) => id);
+      const sorted = sortedImages.map(img => img.id);
 
       await fetch(`/api/collections/${collection.id}`, {
         method: "PATCH",
@@ -119,11 +171,18 @@ export default function RankingPage({ collection }: RankingPageProps) {
     .map(([id]) => collection.images.find((img) => img.id === id))
     .filter(Boolean) as Image[];
 
-  const completion = Math.min(100, Math.round((comparisons.length / (collection.images.length * 5)) * 100));
+  const totalNeeded = (collection.images.length * (collection.images.length - 1)) / 2;
+  const completion = Math.min(100, Math.round((comparisons.length / totalNeeded) * 100));
   
   const totalRankers = Object.keys(collection.rankings || {}).length;
 
-  if (!currentPair) {
+  const currentPair = showResults
+    ? null
+    : sortedImages.length > 0 && pairIndex < sortedImages.length - 1
+      ? [sortedImages[pairIndex], sortedImages[pairIndex + 1]] as [Image, Image]
+      : null;
+
+  if (!sortedImages.length || (!showResults && !currentPair)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -217,13 +276,13 @@ export default function RankingPage({ collection }: RankingPageProps) {
               ))}
             </div>
           </div>
-        ) : (
+        ) : currentPair ? (
           <ComparisonCard
             imageA={currentPair[0]}
             imageB={currentPair[1]}
             onVote={handleVote}
           />
-        )}
+        ) : null}
 
         <div className="mt-8">
           <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
